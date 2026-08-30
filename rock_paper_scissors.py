@@ -25,9 +25,12 @@ class RockPaperScissors:
         self.computer_choice = None
         self.button_rects = {}
         self.button_pressing = {'rock': False, 'paper': False, 'scissors': False}
+        pygame.mixer.init()
 
     def draw_text(self, text, x, y):
         text_surface = font.render(text, True, WHITE)
+        text_rect = text_surface.get_rect(topleft=(x, y))
+        pygame.draw.rect(self.screen, (0, 0, 0, 128), text_rect)  # black background
         self.screen.blit(text_surface, (x, y))
 
     def handle_events(self):
@@ -49,21 +52,25 @@ class RockPaperScissors:
                 self.button_pressing['rock'] = False
                 self.button_pressing['paper'] = False
                 self.button_pressing['scissors'] = False
-                if random.choice([True, False]):
-                    self.computer_choice = random.choice(['rock', 'paper', 'scissors'])
-
+                self.computer_choice = random.choice(['rock', 'paper', 'scissors'])
+                self.play_effects(self.determine_winner())
     def determine_winner(self):
         if self.player_choice is None or self.computer_choice is None:
             return ''
         elif self.player_choice == self.computer_choice:
             return 'Tie'
         elif (self.player_choice == 'rock' and self.computer_choice == 'scissors') or (self.player_choice == 'scissors' and self.computer_choice == 'paper') or (self.player_choice == 'paper' and self.computer_choice == 'rock'):
-            pygame.mixer.init()
-            pygame.mixer.music.load('ding.mp3')
-            pygame.mixer.music.play()
             return 'Player wins'
         else:
             return 'Computer wins'
+
+    def play_effects(self, winner):
+        if winner == 'Player wins':
+            pygame.mixer.music.load('ding.mp3')
+            pygame.mixer.music.play()
+        elif winner == 'Computer wins':
+            pygame.mixer.music.load('bong.mp3')
+            pygame.mixer.music.play()
 
     def draw_buttons(self):
         if self.button_pressing['rock']:
@@ -119,6 +126,4 @@ class RockPaperScissors:
 if __name__ == '__main__':
     game = RockPaperScissors()
     game.run()
-
-
 
