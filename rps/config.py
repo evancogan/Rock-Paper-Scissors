@@ -100,3 +100,14 @@ CHOICE_BUTTON_GROWTH = (20, 10)  # how much a button swells while held down
 
 ROUND_TEXT_X = 100
 ROUND_TEXT_TOPS = (100, 150, 200)  # player line, computer line, result line
+
+# --- Debug mode ------------------------------------------------------------
+# Off by default. The round detail lines - what each side threw and who won -
+# are a developer aid, not part of the game: in normal play the result reaches
+# the player through the sound, the lives pips and the rounds-won counter.
+# Start with --debug, or press the toggle key to flip it mid-game.
+
+DEBUG_DEFAULT = False
+DEBUG_TOGGLE_KEY = 'f3'  # resolved to a pygame key code at runtime
+DEBUG_BADGE = 'DEBUG'
+DEBUG_BADGE_POS = (14, 566)

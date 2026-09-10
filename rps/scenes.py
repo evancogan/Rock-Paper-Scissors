@@ -169,7 +169,9 @@ class PlayScene(Scene):
         self.lives.draw(surface)
         draw_backed_text(surface, config.ROUNDS_WON_LABEL.format(count=self.wins),
                          config.ROUNDS_WON_POS, self.game.fonts.body)
-        if self.round is not None:
+        # The round detail is a developer aid. In normal play the outcome
+        # reaches the player through the sound, the pips and the win counter.
+        if self.game.debug and self.round is not None:
             for line, top in zip(self.round.summary_lines(), config.ROUND_TEXT_TOPS):
                 draw_backed_text(surface, line, (config.ROUND_TEXT_X, top),
                                  self.game.fonts.body)
