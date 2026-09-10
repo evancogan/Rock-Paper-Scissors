@@ -28,6 +28,13 @@ GRADIENT_BANDS = 256  # rows in the source strip, smoothscaled up to the screen
 font = pygame.font.Font(None, 36)
 title_font = pygame.font.Font(None, 72)
 
+# Set up sound effects, keyed by the result determine_winner reports
+OUTCOME_SOUNDS = {
+    'Player wins': 'ding.mp3',
+    'Computer wins': 'bong.mp3',
+    'Tie': 'wow.mp3'
+}
+
 # Screens the game can be on
 MENU = 'menu'
 GAME = 'game'
@@ -169,11 +176,9 @@ class RockPaperScissors:
             return 'Computer wins'
 
     def play_effects(self, winner):
-        if winner == 'Player wins':
-            pygame.mixer.music.load('ding.mp3')
-            pygame.mixer.music.play()
-        elif winner == 'Computer wins':
-            pygame.mixer.music.load('bong.mp3')
+        sound = OUTCOME_SOUNDS.get(winner)
+        if sound is not None:
+            pygame.mixer.music.load(sound)
             pygame.mixer.music.play()
 
     def draw_buttons(self):
