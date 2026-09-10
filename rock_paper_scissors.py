@@ -190,6 +190,11 @@ class RockPaperScissors:
                     self.lives -= 1
                     if self.lives <= 0:
                         self.start_game_over()
+                elif winner == 'Player wins':
+                    # A win buys back a spent life, but never more than you
+                    # started with - there are only STARTING_LIVES pips to show.
+                    self.lives = min(STARTING_LIVES, self.lives + 1)
+                # A tie leaves the count exactly where it was.
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             self.open_menu()
 
