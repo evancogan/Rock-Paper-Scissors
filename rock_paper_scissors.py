@@ -24,6 +24,15 @@ GRADIENT_BOTTOM = ((36, 116, 194), (10, 52, 122))
 GRADIENT_PERIOD_MS = 30000
 GRADIENT_BANDS = 256  # rows in the source strip, smoothscaled up to the screen
 
+# Lives, and the darkness that closes in once they are all spent
+STARTING_LIVES = 3
+LIFE_PIP_COLOR = (222, 74, 74)
+LIFE_SPENT_COLOR = (52, 58, 80)
+GAME_OVER_RED = (188, 26, 26)
+GAME_OVER_SHADE = 238  # how black the overlay finally gets, out of 255
+GAME_OVER_FADE_MS = 2600  # time for the dark to close over the board
+GAME_OVER_HOLD_MS = 1600  # beat at full dark before the menu comes back
+
 # Set up fonts
 font = pygame.font.Font(None, 36)
 title_font = pygame.font.Font(None, 72)
@@ -38,6 +47,7 @@ OUTCOME_SOUNDS = {
 # Screens the game can be on
 MENU = 'menu'
 GAME = 'game'
+GAME_OVER = 'game_over'
 
 
 def lerp_color(start, end, amount):
@@ -64,6 +74,11 @@ class RockPaperScissors:
         self.back_button_rect = pygame.Rect(630, 30, 140, 50)
         self.gradient_surface = None
         self.gradient_ends = None
+        self.lives = STARTING_LIVES
+        self.life_pip_rects = [pygame.Rect(200 + i * 34, 44, 24, 24) for i in range(STARTING_LIVES)]
+        self.game_over_started = None
+        self.shade = pygame.Surface((screen_width, screen_height))
+        self.shade.fill(BLACK)
         pygame.mixer.init()
 
     def quit_game(self):
@@ -72,11 +87,17 @@ class RockPaperScissors:
 
     def start_game(self):
         self.state = GAME
+        self.lives = STARTING_LIVES
         self.reset_round()
 
     def open_menu(self):
         self.state = MENU
+        self.game_over_started = None
         self.reset_round()
+
+    def start_game_over(self):
+        self.state = GAME_OVER
+        self.game_over_started = pygame.time.get_ticks()
 
     def reset_round(self):
         self.player_choice = None
@@ -126,6 +147,8 @@ class RockPaperScissors:
                 self.quit_game()
             elif self.state == MENU:
                 self.handle_menu_event(event)
+            elif self.state == GAME_OVER:
+                self.handle_game_over_event(event)
             else:
                 self.handle_game_event(event)
 
@@ -161,8 +184,21 @@ class RockPaperScissors:
                 self.button_pressing['paper'] = False
                 self.button_pressing['scissors'] = False
                 self.computer_choice = random.choice(['rock', 'paper', 'scissors'])
-                self.play_effects(self.determine_winner())
+                winner = self.determine_winner()
+                self.play_effects(winner)
+                if winner == 'Computer wins':
+                    self.lives -= 1
+                    if self.lives <= 0:
+                        self.start_game_over()
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            self.open_menu()
+
+    def handle_game_over_event(self, event):
+        # Ignore input until the fade has played out, so the click that lost
+        # the last life cannot skip past the screen it just triggered.
+        if not self.game_over_finished_fading():
+            return
+        if event.type in (pygame.MOUSEBUTTONUP, pygame.KEYDOWN):
             self.open_menu()
 
     def determine_winner(self):
@@ -211,6 +247,43 @@ class RockPaperScissors:
         text_surface = font.render('Scissors', True, BLACK)
         self.screen.blit(text_surface, (self.button_rects['scissors'].centerx - 50, self.button_rects['scissors'].centery))
 
+    def game_over_fade(self):
+        """How far the fade has come, 0.0 at the moment of death to 1.0 at full dark."""
+        if self.game_over_started is None:
+            return 0.0
+        elapsed = pygame.time.get_ticks() - self.game_over_started
+        return min(1.0, elapsed / GAME_OVER_FADE_MS)
+
+    def game_over_finished_fading(self):
+        return self.game_over_fade() >= 1.0
+
+    def draw_lives(self):
+        self.draw_text('Lives', 100, 40)
+        for i, pip in enumerate(self.life_pip_rects):
+            spent = i >= self.lives
+            pygame.draw.rect(self.screen, LIFE_SPENT_COLOR if spent else LIFE_PIP_COLOR, pip)
+            pygame.draw.rect(self.screen, BLACK, pip, 2)
+
+    def draw_game_over(self):
+        # The board stays visible underneath, so you watch the dark swallow the
+        # losing hand rather than cutting away from it.
+        self.draw_game()
+        fade = self.game_over_fade()
+        # Squared easing: barely moves at first, then rushes in at the end.
+        self.shade.set_alpha(round(GAME_OVER_SHADE * fade * fade))
+        self.screen.blit(self.shade, (0, 0))
+
+        # The words surface only over the back half, once it is already dim.
+        text_fade = max(0.0, (fade - 0.45) / 0.55)
+        if text_fade > 0:
+            title_surface = title_font.render('GAME OVER', True, GAME_OVER_RED)
+            title_surface.set_alpha(round(255 * text_fade))
+            self.screen.blit(title_surface, title_surface.get_rect(center=(screen_width // 2, 264)))
+        if self.game_over_finished_fading():
+            hint_surface = font.render('Returning to the menu...', True, WHITE)
+            hint_surface.set_alpha(160)
+            self.screen.blit(hint_surface, hint_surface.get_rect(center=(screen_width // 2, 410)))
+
     def draw_menu(self):
         self.draw_background()
         title_surface = title_font.render('Rock Paper Scissors', True, WHITE)
@@ -221,6 +294,7 @@ class RockPaperScissors:
     def draw_game(self):
         self.draw_background()
         self.draw_menu_button(self.back_button_rect, 'Menu')
+        self.draw_lives()
         if self.player_choice is not None and self.computer_choice is not None:
             self.draw_text(f'Player: {self.player_choice}', 100, 100)
             self.draw_text(f'Computer: {self.computer_choice}', 100, 150)
@@ -230,13 +304,22 @@ class RockPaperScissors:
     def draw(self):
         if self.state == MENU:
             self.draw_menu()
+        elif self.state == GAME_OVER:
+            self.draw_game_over()
         else:
             self.draw_game()
         pygame.display.flip()
 
+    def update(self):
+        if self.state == GAME_OVER:
+            elapsed = pygame.time.get_ticks() - self.game_over_started
+            if elapsed >= GAME_OVER_FADE_MS + GAME_OVER_HOLD_MS:
+                self.open_menu()
+
     def run(self):
         while True:
             self.handle_events()
+            self.update()
             self.draw()
             self.clock.tick(60)
 
