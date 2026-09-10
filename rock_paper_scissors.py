@@ -1,3 +1,4 @@
+import math
 import pygame
 import random
 import sys
@@ -14,8 +15,14 @@ pygame.display.set_caption('Rock Paper Scissors')
 # Set up colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-BACKGROUND = (0, 255, 255)
 BUTTON_HOVER = (215, 215, 215)
+
+# The background is a vertical gradient whose two ends drift between these
+# blues and back again, once every GRADIENT_PERIOD_MS.
+GRADIENT_TOP = ((12, 28, 84), (24, 74, 150))
+GRADIENT_BOTTOM = ((36, 116, 194), (10, 52, 122))
+GRADIENT_PERIOD_MS = 30000
+GRADIENT_BANDS = 256  # rows in the source strip, smoothscaled up to the screen
 
 # Set up fonts
 font = pygame.font.Font(None, 36)
@@ -24,6 +31,10 @@ title_font = pygame.font.Font(None, 72)
 # Screens the game can be on
 MENU = 'menu'
 GAME = 'game'
+
+
+def lerp_color(start, end, amount):
+    return tuple(round(start[i] + (end[i] - start[i]) * amount) for i in range(3))
 
 
 class RockPaperScissors:
@@ -44,6 +55,8 @@ class RockPaperScissors:
             'quit': pygame.Rect(300, 390, 200, 60)
         }
         self.back_button_rect = pygame.Rect(630, 30, 140, 50)
+        self.gradient_surface = None
+        self.gradient_ends = None
         pygame.mixer.init()
 
     def quit_game(self):
@@ -69,6 +82,26 @@ class RockPaperScissors:
         text_rect = text_surface.get_rect(topleft=(x, y))
         pygame.draw.rect(self.screen, (0, 0, 0, 128), text_rect)  # black background
         self.screen.blit(text_surface, (x, y))
+
+    def gradient_ends_at(self, ticks):
+        # Cosine easing so the drift turns around smoothly instead of snapping
+        # back to the start of the cycle.
+        phase = (1 - math.cos(2 * math.pi * ticks / GRADIENT_PERIOD_MS)) / 2
+        return (lerp_color(GRADIENT_TOP[0], GRADIENT_TOP[1], phase),
+                lerp_color(GRADIENT_BOTTOM[0], GRADIENT_BOTTOM[1], phase))
+
+    def draw_background(self):
+        ends = self.gradient_ends_at(pygame.time.get_ticks())
+        # The colors move slowly enough that most frames can reuse the last
+        # surface; only rebuild once the rounded endpoints actually change.
+        if ends != self.gradient_ends:
+            self.gradient_ends = ends
+            top, bottom = ends
+            strip = pygame.Surface((1, GRADIENT_BANDS))
+            for y in range(GRADIENT_BANDS):
+                strip.set_at((0, y), lerp_color(top, bottom, y / (GRADIENT_BANDS - 1)))
+            self.gradient_surface = pygame.transform.smoothscale(strip, (screen_width, screen_height))
+        self.screen.blit(self.gradient_surface, (0, 0))
 
     def draw_centered_text(self, text, rect, color, text_font=font):
         text_surface = text_font.render(text, True, color)
@@ -174,14 +207,14 @@ class RockPaperScissors:
         self.screen.blit(text_surface, (self.button_rects['scissors'].centerx - 50, self.button_rects['scissors'].centery))
 
     def draw_menu(self):
-        self.screen.fill(BACKGROUND)
-        title_surface = title_font.render('Rock Paper Scissors', True, BLACK)
+        self.draw_background()
+        title_surface = title_font.render('Rock Paper Scissors', True, WHITE)
         self.screen.blit(title_surface, title_surface.get_rect(center=(screen_width // 2, 160)))
         self.draw_menu_button(self.menu_button_rects['play'], 'Play')
         self.draw_menu_button(self.menu_button_rects['quit'], 'Quit')
 
     def draw_game(self):
-        self.screen.fill(BACKGROUND)
+        self.draw_background()
         self.draw_menu_button(self.back_button_rect, 'Menu')
         if self.player_choice is not None and self.computer_choice is not None:
             self.draw_text(f'Player: {self.player_choice}', 100, 100)
