@@ -52,6 +52,11 @@ LIFE_PIP_SPACING = 34
 LIFE_PIP_ORIGIN = (200, 44)
 LIVES_LABEL_POS = (100, 40)
 
+# --- Rounds won ------------------------------------------------------------
+
+ROUNDS_WON_LABEL = 'Rounds won: {count}'
+ROUNDS_WON_POS = (330, 40)  # top row, clear of the pips (end 292) and Menu (start 630)
+
 # --- Game over -------------------------------------------------------------
 
 GAME_OVER_TEXT = 'GAME OVER'

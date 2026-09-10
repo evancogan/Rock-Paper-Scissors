@@ -15,6 +15,8 @@ from . import config
 
 def lerp_color(start, end, amount):
     """Blend two RGB colors, ``amount`` running 0.0 (start) to 1.0 (end)."""
+    # "lerp" is the usual shorthand for linear interpolation: a straight blend between two values.
+    # it is used here to drift the gradient's ends over time and shade the rows between them.
     return tuple(round(start[i] + (end[i] - start[i]) * amount) for i in range(3))
 
 

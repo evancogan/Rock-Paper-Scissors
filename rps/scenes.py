@@ -9,7 +9,7 @@ a screen means adding a class rather than another branch in three separate
 import pygame
 
 from . import config
-from .rules import Move, Round
+from .rules import Move, Outcome, Round
 from .ui import Button, LivesMeter, draw_backed_text, draw_centered_text
 
 
@@ -69,13 +69,19 @@ class MenuScene(Scene):
 
 
 class PlayScene(Scene):
-    """The board: three choices, the last round's result, and the lives meter."""
+    """The board: three choices, the last round's result, the lives meter and
+    the tally of rounds won.
+
+    A fresh instance is built for every new game, so the win count and the
+    lives both start over without any explicit reset.
+    """
 
     def __init__(self, game):
         super().__init__(game)
         font = game.fonts.body
         self.lives = LivesMeter(font)
         self.round = None
+        self.wins = 0
         self.back_button = Button(config.BACK_BUTTON_RECT, 'Menu', font)
         width, height = config.CHOICE_BUTTON_SIZE
         self.choice_buttons = {
@@ -125,6 +131,8 @@ class PlayScene(Scene):
         player_move = self._pressed_move
         self._release_buttons()
         self.round = Round.against_computer(player_move)
+        if self.round.outcome is Outcome.PLAYER_WINS:
+            self.wins += 1
         self.game.sounds.play(self.round.outcome)
         if self.lives.apply(self.round.outcome):
             self.game.end_game(self)
@@ -136,6 +144,8 @@ class PlayScene(Scene):
         mouse_pos = pygame.mouse.get_pos()
         self.back_button.draw(surface, mouse_pos)
         self.lives.draw(surface)
+        draw_backed_text(surface, config.ROUNDS_WON_LABEL.format(count=self.wins),
+                         config.ROUNDS_WON_POS, self.game.fonts.body)
         if self.round is not None:
             for line, top in zip(self.round.summary_lines(), config.ROUND_TEXT_TOPS):
                 draw_backed_text(surface, line, (config.ROUND_TEXT_X, top),

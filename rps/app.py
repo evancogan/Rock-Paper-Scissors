@@ -68,6 +68,7 @@ class Game:
 
     def _pump_events(self, ticks):
         """Forward this frame's events to the active scene."""
+        # Drains pygame's event queue each frame; QUIT stops the loop, other events go to the scene.
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.quit()
