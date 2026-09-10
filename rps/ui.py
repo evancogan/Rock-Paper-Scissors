@@ -30,6 +30,7 @@ class Fonts:
     def __init__(self):
         self.body = pygame.font.Font(None, config.BODY_FONT_SIZE)
         self.title = pygame.font.Font(None, config.TITLE_FONT_SIZE)
+        self.countdown = pygame.font.Font(None, config.COUNTDOWN_FONT_SIZE)
 
 
 def draw_backed_text(surface, text, topleft, font,
@@ -97,6 +98,94 @@ class GradientBackground:
             self._cached_ends = ends
             self._cached_surface = self._render(ends)
         surface.blit(self._cached_surface, (0, 0))
+
+
+class Countdown:
+    """The bouncing ROCK, PAPER, SCISSORS, SHOOT! build-up before a reveal.
+
+    Each label owns one beat of ``step_ms``. Within its beat a label pops in
+    oversized, hops a couple of times as it settles to full size, then fades
+    out, so the sequence reads as a chant rather than a slideshow.
+
+    The widget only knows how to time and draw itself; the scene decides when
+    to start it and what to do once :meth:`finished` reports True.
+    """
+
+    def __init__(self, font, labels=config.COUNTDOWN_LABELS,
+                 step_ms=config.COUNTDOWN_STEP_MS):
+        self.font = font
+        self.labels = tuple(labels)
+        self.step_ms = step_ms
+        self.started_at = None
+
+    @property
+    def active(self):
+        """True between :meth:`start` and :meth:`stop`."""
+        return self.started_at is not None
+
+    @property
+    def duration_ms(self):
+        """Total run time of the whole sequence."""
+        return self.step_ms * len(self.labels)
+
+    def start(self, ticks):
+        """Begin the sequence at ``ticks``."""
+        self.started_at = ticks
+
+    def stop(self):
+        """End the sequence, leaving nothing to draw."""
+        self.started_at = None
+
+    def beat_at(self, ticks):
+        """Return ``(index, progress)`` for the beat playing at ``ticks``.
+
+        ``progress`` runs 0.0 to 1.0 across a single label. The index reaches
+        ``len(labels)`` once the sequence is spent, which is what
+        :meth:`finished` tests.
+        """
+        elapsed = max(0, ticks - self.started_at)
+        index = elapsed // self.step_ms
+        return int(index), (elapsed % self.step_ms) / self.step_ms
+
+    def finished(self, ticks):
+        """True once every label has had its beat."""
+        return self.active and ticks - self.started_at >= self.duration_ms
+
+    def _bounce(self, progress):
+        """Return the ``(scale, lift, alpha)`` of a label at ``progress``.
+
+        The scale eases down from its pop with a cubic so the shrink is fast
+        at first and gentle at the end; the lift is a decaying sine, giving
+        ``COUNTDOWN_HOPS`` hops that shrink toward zero as the beat runs out.
+        """
+        settle = (1 - progress) ** 3
+        scale = 1 + config.COUNTDOWN_POP * settle
+        lift = (config.COUNTDOWN_HOP_HEIGHT
+                * abs(math.sin(math.pi * config.COUNTDOWN_HOPS * progress))
+                * (1 - progress))
+        fade_from = config.COUNTDOWN_FADE_FROM
+        if progress <= fade_from:
+            alpha = 255
+        else:
+            alpha = round(255 * (1 - progress) / (1 - fade_from))
+        return scale, lift, alpha
+
+    def draw(self, surface, ticks):
+        """Draw the label for the current beat, if the sequence is still running."""
+        if not self.active:
+            return
+        index, progress = self.beat_at(ticks)
+        if index >= len(self.labels):
+            return
+        scale, lift, alpha = self._bounce(progress)
+        glyph = self.font.render(self.labels[index], True, config.COUNTDOWN_COLOR)
+        if scale != 1:
+            width = max(1, round(glyph.get_width() * scale))
+            height = max(1, round(glyph.get_height() * scale))
+            glyph = pygame.transform.smoothscale(glyph, (width, height))
+        glyph.set_alpha(alpha)
+        center_x, center_y = config.COUNTDOWN_CENTER
+        surface.blit(glyph, glyph.get_rect(center=(center_x, center_y - lift)))
 
 
 class Button:

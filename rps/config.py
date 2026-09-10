@@ -57,6 +57,22 @@ LIVES_LABEL_POS = (100, 40)
 ROUNDS_WON_LABEL = 'Rounds won: {count}'
 ROUNDS_WON_POS = (330, 40)  # top row, clear of the pips (end 292) and Menu (start 630)
 
+# --- Countdown -------------------------------------------------------------
+# After a choice is made, these labels bounce through one at a time and the
+# round is revealed as the last one ends. The font size is set so the widest
+# label still fits the screen at the peak of its pop: 'SCISSORS' is 363px at
+# size 100, or 690px scaled by 1 + COUNTDOWN_POP.
+
+COUNTDOWN_LABELS = ('ROCK', 'PAPER', 'SCISSORS', 'SHOOT!')
+COUNTDOWN_STEP_MS = 450  # how long each label holds the screen
+COUNTDOWN_FONT_SIZE = 100
+COUNTDOWN_COLOR = WHITE
+COUNTDOWN_CENTER = (SCREEN_WIDTH // 2, 190)
+COUNTDOWN_POP = 0.9  # extra size at the instant a label appears, as a fraction
+COUNTDOWN_HOPS = 2  # how many times a label bounces before settling
+COUNTDOWN_HOP_HEIGHT = 26  # pixels of lift on the first hop
+COUNTDOWN_FADE_FROM = 0.72  # fraction of a beat before the label fades out
+
 # --- Game over -------------------------------------------------------------
 
 GAME_OVER_TEXT = 'GAME OVER'

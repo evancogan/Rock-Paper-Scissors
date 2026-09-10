@@ -10,7 +10,7 @@ import pygame
 
 from . import config
 from .rules import Move, Outcome, Round
-from .ui import Button, LivesMeter, draw_backed_text, draw_centered_text
+from .ui import Button, Countdown, LivesMeter, draw_backed_text, draw_centered_text
 
 
 class Scene:
@@ -82,6 +82,7 @@ class PlayScene(Scene):
         self.lives = LivesMeter(font)
         self.round = None
         self.wins = 0
+        self.countdown = Countdown(game.fonts.countdown)
         self.back_button = Button(config.BACK_BUTTON_RECT, 'Menu', font)
         width, height = config.CHOICE_BUTTON_SIZE
         self.choice_buttons = {
@@ -93,15 +94,27 @@ class PlayScene(Scene):
     # --- input -------------------------------------------------------------
 
     def handle_event(self, event, ticks):
+        # Leaving the board always works, even mid-chant.
+        if event.type == pygame.MOUSEBUTTONUP and self.back_button.contains(event.pos):
+            self.game.open_menu()
+            return
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            self.game.open_menu()
+            return
+        # Choices are locked while the chant runs, so a throw cannot be
+        # changed or a second round started before the reveal.
+        if self.countdown.active:
+            return
         if event.type == pygame.MOUSEBUTTONDOWN:
             self._press_choice_at(event.pos)
-        elif event.type == pygame.MOUSEBUTTONUP:
-            if self.back_button.contains(event.pos):
-                self.game.open_menu()
-            elif self._pressed_move is not None:
-                self._settle_round()
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-            self.game.open_menu()
+        elif event.type == pygame.MOUSEBUTTONUP and self._pressed_move is not None:
+            self._begin_countdown(ticks)
+
+    def update(self, ticks):
+        """Reveal the round once the chant reaches the end of SHOOT!."""
+        if self.countdown.finished(ticks):
+            self.countdown.stop()
+            self._settle_round()
 
     @property
     def _pressed_move(self):
@@ -122,11 +135,21 @@ class PlayScene(Scene):
         for button in self.choice_buttons.values():
             button.pressed = False
 
+    def _begin_countdown(self, ticks):
+        """Start the chant, clearing the previous result so it is not spoiled.
+
+        The chosen button is deliberately left held down, which keeps showing
+        the player what they threw while the chant plays.
+        """
+        self.round = None
+        self.countdown.start(ticks)
+
     def _settle_round(self):
         """Play the held move against the computer and apply the result.
 
-        Only reached when a choice button is actually held, so a stray click
-        on the background cannot re-roll the round.
+        Only reached from the end of the chant, which in turn only starts when
+        a choice button is actually held, so a stray click on the background
+        cannot re-roll the round.
         """
         player_move = self._pressed_move
         self._release_buttons()
@@ -152,6 +175,8 @@ class PlayScene(Scene):
                                  self.game.fonts.body)
         for button in self.choice_buttons.values():
             button.draw(surface, mouse_pos)
+        # Drawn last so the chant reads over the top of the board.
+        self.countdown.draw(surface, ticks)
 
 
 class GameOverScene(Scene):
