@@ -2,7 +2,6 @@
 
 _The game programmers know and love_
 
-<img width="794" height="628" alt="image" src="https://github.com/user-attachments/assets/de4d819e-4573-47d7-a7d0-1e50c2aabe5e" />
-
+<img width="587" height="431" alt="image" src="https://github.com/user-attachments/assets/362b5472-33d4-4c7e-a2a2-9d9e8dcf11c3" />
 
 **This is a work in progress, does not reflect final outcome. Check back soon**
